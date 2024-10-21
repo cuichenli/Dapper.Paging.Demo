@@ -7,8 +7,12 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Serilog;
+using System;
 using System.IO;
+using OpenTelemetry.Trace;
 
+
+Console.WriteLine("Started");
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Configuration.AddEnvironmentVariables();
@@ -19,7 +23,15 @@ builder.Host.UseContentRoot(Directory.GetCurrentDirectory());
 builder.Host.UseDefaultServiceProvider(options => options.ValidateScopes = false);
 
 // If needed, Clear default providers
-builder.Logging.ClearProviders();
+// builder.Logging.ClearProviders();
+builder.Services.AddOpenTelemetry()
+      .WithTracing(tracing => tracing
+          .AddAspNetCoreInstrumentation()
+          .AddSqlClientInstrumentation()
+          .AddOtlpExporter(otlpOptions =>
+          {
+              otlpOptions.Endpoint = new Uri("http://splunk-otel-collector-agent.splunk.svc.cluster.local:4317");
+          }));
 
 // Use Serilog
 builder.Host.UseSerilog((hostingContext, loggerConfiguration) => loggerConfiguration
@@ -63,4 +75,5 @@ app.MapRazorPages();
 
 app.UseMvc();
 
+Console.WriteLine("before run");
 app.Run();
